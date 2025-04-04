@@ -7,10 +7,10 @@ st.title("Damage estimator")
 
 st.text("Load the couple of images of the disaster photo you want to load")
 
-# Essayer de mettre les images sur deux colonnes
-# Un message de patiente 
+tab1, tab2 = st.tabs(["Load from file", "Load from URL"])
 
-col1, col2 = st.columns(2)
+# Tab 1 - FROM FILE
+col1, col2 = tab1.columns(2)
 
 pre_disaster_file = col1.file_uploader("Choose a pre-disaster image file", type="png")
 post_disaster_file = col2.file_uploader("Choose a post-disaster image file", type="png")
@@ -31,8 +31,32 @@ if post_disaster_file is not None:
     # Now do something with the image! For example, let's display it:
     col2.image(opencv_image, channels="BGR")
 
-if st.button("Predict"):
-    # Convert the pre-disaster image to bytes
+# Tab2 - FROM URL
+col3, col4 = tab2.columns(2)
+
+pre_disaster_url = col3.text_input("Enter the URL of the pre-disaster image")
+post_disaster_url = col4.text_input("Enter the URL of the post-disaster image")
+
+if pre_disaster_url:
+    # Convert the URL to an opencv image.
+    # pre_disaster_image = cv2.imread(pre_disaster_url)
+    # Now do something with the image! For example, let's display it:
+    # col3.image(pre_disaster_image, channels="BGR")
+    file_response = requests.get(pre_disaster_url)
+    col3.image(file_response.content, channels="BGR")
+
+if post_disaster_url:
+    # Convert the URL to an opencv image.
+    # post_disaster_image = cv2.imread(post_disaster_url)
+    # Now do something with the image! For example, let's display it:
+    # col4.image(post_disaster_image, channels="BGR")
+    file_response = requests.get(post_disaster_url)
+    col4.image(file_response.content, channels="BGR")
+
+
+# Partie commune de prédiction
+if tab1.button("Predict from file"):
+    # Convert both images to bytes
     pre_disaster_image_bytes = pre_disaster_file.read()
     post_disaster_image_bytes = post_disaster_file.read()
 
@@ -45,10 +69,32 @@ if st.button("Predict"):
     
     response = requests.post(url, files=files)
     
-
     if response.status_code == 200:
-        st.success("Prediction successful!")
-        st.json(response.json())
+        tab1.success("Prediction successful!")
+        tab1.json(response.json())
     else:
-        st.error("Prediction failed.")
-        st.error(f"Error: {response.status_code} - {response.text}")
+        tab1.error("Prediction failed.")
+        tab1.error(f"Error: {response.status_code} - {response.text}")
+
+if tab2.button("Predict from URL"):
+    # Convert both images to bytes
+    pre_response = requests.get(pre_disaster_url)
+    pre_disaster_image_bytes = pre_response.content
+    post_response = requests.get(post_disaster_url)
+    post_disaster_image_bytes = post_response.content
+
+    # Send a POST request to the API
+    url = "http://localhost:8080/predict"  # Replace with your API endpoint
+    files = {
+        "pre_disaster_image": ("pre_disaster.png", pre_disaster_image_bytes, "image/png"),
+        "post_disaster_image": ("post_disaster.png", post_disaster_image_bytes, "image/png"),
+    }
+    
+    response = requests.post(url, files=files)
+    
+    if response.status_code == 200:
+        tab2.success("Prediction successful!")
+        tab2.json(response.json())
+    else:
+        tab2.error("Prediction failed.")
+        tab2.error(f"Error: {response.status_code} - {response.text}")
