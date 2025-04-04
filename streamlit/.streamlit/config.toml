@@ -1,0 +1,5 @@
+# title = "Streamlit configuration file"
+
+[theme]
+primaryColor = "#F63366"
+backgroundColor = "black"

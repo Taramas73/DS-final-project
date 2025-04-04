@@ -1,4 +1,4 @@
-The structure of the project could be like this (here shown only the directories not the files)
+The structure of the project could be like this (here shown only the directories)
 
 .
 ├── dataset
