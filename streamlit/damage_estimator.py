@@ -4,6 +4,16 @@ import cv2
 import requests
 import chardet
 
+IMG_SIZE = (256, 256)
+
+def load_image(bytes_image):
+    file_byte = np.array(bytearray(bytes_image), dtype=np.uint8)
+    print(f"2 - Shape: {file_byte.shape}")
+    img = cv2.imdecode(file_byte, 1)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cv2.resize(img, IMG_SIZE) / 255.0  # Normalize
+    return img
+
 pre_bytes = None
 post_bytes = None
 
@@ -53,18 +63,34 @@ if post_disaster_url:
 
 # Prédiction
 if tab1.button("Predict from file"):
+    pre = load_image(pre_bytes)
+    post = load_image(post_bytes)
+    stacked_image = np.concatenate([pre, post], axis=-1)  # Shape: (256, 256, 6)
+
+    # Convert the stacked image to bytes
+    # _, stacked_buffer = cv2.imencode('.png', stacked_image)
+    # stacked_bytes = stacked_buffer.tobytes()
+
+    # Pas bon parce que l'image n'a pas la bonne shape :
+    # stacked_bytes = cv2.imencode('.png', stacked_image)[1].tobytes()
+    # Pas bon parce que la reconstruction de l'image stacked semble échouer
+    # côté back :
+    tab1.write(stacked_image.shape)
+    stacked_bytes = stacked_image.tobytes()
+    backto_image = np.frombuffer(stacked_bytes, dtype=np.uint8).reshape(256, 256, 6)
+    tab1.write(backto_image.shape)
+
+    # tab1.write(stacked_bytes)
+
     # Send a POST request to the API
     url = "http://localhost:8080/predict"  # Replace with your API endpoint
-    files = {
-        "pre_disaster_image": pre_bytes,
-        "post_disaster_image": post_bytes
-    }
-    
-    response = requests.post(url, data=files)
+        
+    response = requests.post(url, data=stacked_bytes,
+                        headers={'Content-Type': 'application/octet-stream'})
     
     if response.status_code == 200:
         tab1.success("Prediction successful!")
-        tab1.json(response.json())
+        tab1.image(response.content, channels="BGR")
     else:
         tab1.error("Prediction failed.")
         tab1.error(f"Error: {response.status_code} - {response.text}")
@@ -72,7 +98,6 @@ if tab1.button("Predict from file"):
 if tab2.button("Predict from URL"):
     # Convert both images to bytes
     pre_response = requests.get(pre_disaster_url)
-    tab2.write(pre_response.headers)
     pre_disaster_image_bytes = pre_response.content
     post_response = requests.get(post_disaster_url)
     post_disaster_image_bytes = post_response.content
