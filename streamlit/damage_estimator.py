@@ -2,6 +2,10 @@ import streamlit as st
 import numpy as np
 import cv2
 import requests
+import chardet
+
+pre_bytes = None
+post_bytes = None
 
 st.title("Damage estimator")
 
@@ -17,18 +21,20 @@ post_disaster_file = col2.file_uploader("Choose a post-disaster image file", typ
 
 if pre_disaster_file is not None:
     # Convert the file to an opencv image.
-    file_bytes = np.asarray(bytearray(pre_disaster_file.read()), dtype=np.uint8)
+    pre_bytes = pre_disaster_file.read()
+    file_bytes = np.asarray(bytearray(pre_bytes), dtype=np.uint8)
     opencv_image = cv2.imdecode(file_bytes, 1)
-
-    # Now do something with the image! For example, let's display it:
+    
+    # Display image.
     col1.image(opencv_image, channels="BGR")
 
 if post_disaster_file is not None:
     # Convert the file to an opencv image.
-    file_bytes = np.asarray(bytearray(post_disaster_file.read()), dtype=np.uint8)
+    post_bytes = post_disaster_file.read()
+    file_bytes = np.asarray(bytearray(post_bytes), dtype=np.uint8)
     opencv_image = cv2.imdecode(file_bytes, 1)
 
-    # Now do something with the image! For example, let's display it:
+    # Display image.
     col2.image(opencv_image, channels="BGR")
 
 # Tab2 - FROM URL
@@ -38,36 +44,23 @@ pre_disaster_url = col3.text_input("Enter the URL of the pre-disaster image")
 post_disaster_url = col4.text_input("Enter the URL of the post-disaster image")
 
 if pre_disaster_url:
-    # Convert the URL to an opencv image.
-    # pre_disaster_image = cv2.imread(pre_disaster_url)
-    # Now do something with the image! For example, let's display it:
-    # col3.image(pre_disaster_image, channels="BGR")
     file_response = requests.get(pre_disaster_url)
     col3.image(file_response.content, channels="BGR")
 
 if post_disaster_url:
-    # Convert the URL to an opencv image.
-    # post_disaster_image = cv2.imread(post_disaster_url)
-    # Now do something with the image! For example, let's display it:
-    # col4.image(post_disaster_image, channels="BGR")
     file_response = requests.get(post_disaster_url)
     col4.image(file_response.content, channels="BGR")
 
-
-# Partie commune de prédiction
+# Prédiction
 if tab1.button("Predict from file"):
-    # Convert both images to bytes
-    pre_disaster_image_bytes = pre_disaster_file.read()
-    post_disaster_image_bytes = post_disaster_file.read()
-
     # Send a POST request to the API
     url = "http://localhost:8080/predict"  # Replace with your API endpoint
     files = {
-        "pre_disaster_image": ("pre_disaster.png", pre_disaster_image_bytes, "image/png"),
-        "post_disaster_image": ("post_disaster.png", post_disaster_image_bytes, "image/png"),
+        "pre_disaster_image": pre_bytes,
+        "post_disaster_image": post_bytes
     }
     
-    response = requests.post(url, files=files)
+    response = requests.post(url, data=files)
     
     if response.status_code == 200:
         tab1.success("Prediction successful!")
@@ -79,15 +72,20 @@ if tab1.button("Predict from file"):
 if tab2.button("Predict from URL"):
     # Convert both images to bytes
     pre_response = requests.get(pre_disaster_url)
+    tab2.write(pre_response.headers)
     pre_disaster_image_bytes = pre_response.content
     post_response = requests.get(post_disaster_url)
     post_disaster_image_bytes = post_response.content
 
     # Send a POST request to the API
     url = "http://localhost:8080/predict"  # Replace with your API endpoint
+    # files = {
+    #     "pre_disaster_image": ("pre_disaster.png", pre_disaster_image_bytes, "image/png"),
+    #     "post_disaster_image": ("post_disaster.png", post_disaster_image_bytes, "image/png"),
+    # }
     files = {
-        "pre_disaster_image": ("pre_disaster.png", pre_disaster_image_bytes, "image/png"),
-        "post_disaster_image": ("post_disaster.png", post_disaster_image_bytes, "image/png"),
+        "pre_disaster_image": pre_disaster_image_bytes,
+        "post_disaster_image": post_disaster_image_bytes
     }
     
     response = requests.post(url, files=files)
