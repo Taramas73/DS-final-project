@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, File, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 import pandas as pd
 import numpy as np
 import tensorflow as tf
@@ -129,10 +129,12 @@ async def test_files(files: List[UploadFile] = File(...)):
         output_signature=(tf.TensorSpec(shape=(256, 256, 6), dtype=tf.float32))
     )
     
+    # Comment 3 lines below during return test
     model = unet_model()
     model.load_weights(MODEL_PATH)
-
     pred = model.predict(tf.expand_dims(dataset.take(1)[1, :, :, :], axis=0))
 
     # return {"stacked_shape": stacked_image.shape}
-    return FileResponse(pred)
+    return Response(content=pred)
+    # TEST :
+    # return Response(content=post_disaster_image)

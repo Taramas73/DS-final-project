@@ -62,6 +62,7 @@ if tab1.button("Predict from file"):
     if response.status_code == 200:
         tab1.success("Prediction successful!")
         mask = response.content
+        tab1.image(mask)
         # tab1.write(str(type(mask)))
     else:
         tab1.error("Prediction failed.")
@@ -72,19 +73,20 @@ if tab1.button("Predict from file"):
 if tab2.button("Predict from URL"):
     # Convert both images to bytes
     pre_response = requests.get(pre_disaster_url)
-    tab2.write(pre_response.headers)
+    # tab2.write(pre_response.headers)
     pre_disaster_image_bytes = pre_response.content
     post_response = requests.get(post_disaster_url)
     post_disaster_image_bytes = post_response.content
 
     # Send a POST request to the API
-    files = [('files', pre_bytes), ('files', post_bytes)]
+    files = [('files', pre_disaster_image_bytes), ('files', post_disaster_image_bytes)]
     
     response = requests.post(URL, files=files)
     
     if response.status_code == 200:
         tab2.success("Prediction successful!")
         mask = response.content
+        tab2.image(mask)
     else:
         tab2.error("Prediction failed.")
         with open(path.join("logs", "response.txt"), "w") as f:
