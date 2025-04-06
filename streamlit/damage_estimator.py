@@ -3,6 +3,7 @@ import numpy as np
 import cv2
 import requests
 import chardet
+from os import path
 
 pre_bytes = None
 post_bytes = None
@@ -21,6 +22,7 @@ post_disaster_file = col2.file_uploader("Choose a post-disaster image file", typ
 
 if pre_disaster_file is not None:
     # Convert the file to an opencv image.
+    
     pre_bytes = pre_disaster_file.read()
     file_bytes = np.asarray(bytearray(pre_bytes), dtype=np.uint8)
     opencv_image = cv2.imdecode(file_bytes, 1)
@@ -54,20 +56,27 @@ if post_disaster_url:
 # Prédiction
 if tab1.button("Predict from file"):
     # Send a POST request to the API
-    url = "http://localhost:8080/predict"  # Replace with your API endpoint
-    files = {
-        "pre_disaster_image": pre_bytes,
-        "post_disaster_image": post_bytes
-    }
+    # url = "http://localhost:8080/predict"  # Replace with your API endpoint
+    # url = "http://localhost:8080/uploadfiles/"
+    url = "http://localhost:8080/testfiles/"
+    # files = {
+    #     "pre_disaster_image": pre_bytes,
+    #     "post_disaster_image": post_bytes
+    # }
+    files = [('files', pre_bytes), ('files', post_bytes)]
     
-    response = requests.post(url, data=files)
+    response = requests.post(url, files=files)
     
     if response.status_code == 200:
         tab1.success("Prediction successful!")
-        tab1.json(response.json())
+        mask = response.content
+        tab1.write(str(type(mask)))
+        # tab1.json(response.json())
     else:
         tab1.error("Prediction failed.")
-        tab1.error(f"Error: {response.status_code} - {response.text}")
+        with open(path.join("logs", "response.txt"), "w") as f:
+            f.write(str(response.status_code) + "\n\n" + response.text)
+        # tab1.error(f"Error: {response.status_code} - {response.text}")
 
 if tab2.button("Predict from URL"):
     # Convert both images to bytes
@@ -95,4 +104,6 @@ if tab2.button("Predict from URL"):
         tab2.json(response.json())
     else:
         tab2.error("Prediction failed.")
-        tab2.error(f"Error: {response.status_code} - {response.text}")
+        with open(path.join("logs", "response.txt"), "w") as f:
+            f.write(response.status_code + "\n\n" + response.text)
+        # tab2.error(f"Error: {response.status_code} - {response.text}")
