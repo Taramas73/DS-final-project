@@ -14,10 +14,6 @@ from os import path
 IMG_SIZE = (256, 256)
 MODEL_PATH = path.join("models", "unet_v8_multiclass_epoch_20.weights.h5")
 
-class Files(BaseModel):
-    pre_disaster_image: bytes
-    post_disaster_image: bytes
-
 def process_image(image: bytes):
     file_byte = np.array(bytearray(image), dtype=np.uint8)
     opencv = cv2.imdecode(file_byte, 1)
@@ -115,27 +111,8 @@ app = FastAPI()
 async def say_hi():
     return {"message": "Hello World!"}
 
-
-# Endpoint pour recevoir des fichiers - Essai 1
-@app.post("/uploadfiles/")
-async def upload_files(request: Request):
-    form = await request.form()
-    pre_disaster_image = form['pre_disaster_image']
-    post_disaster_image = form['post_disaster_image']
-
-    # Convert the pre_disaster_image string to bytes
-    pre_disaster_byte = pre_disaster_image.encode('utf-8')
-    pre_file_byte = np.array(bytearray(pre_disaster_byte), dtype=np.uint8)
-    pre_opencv = cv2.imdecode(pre_file_byte, 1)
-    pre_opencv = cv2.cvtColor(pre_opencv, cv2.COLOR_BGR2RGB)
-    pre_opencv = cv2.resize(pre_opencv, IMG_SIZE) / 255.0
-
-    return {"pre_size": str(type(pre_disaster_image)), 
-            "post_size": str(type(post_disaster_image))}
-
-
-# Endpoint pour recevoir des fichiers - Essai 2
-@app.post("/testfiles/")
+# Endpoint pour recevoir des fichiers
+@app.post("/predict/")
 async def test_files(files: List[UploadFile] = File(...)):
     pre_disaster_image = files[0].file.read()
     post_disaster_image = files[1].file.read()
@@ -143,11 +120,12 @@ async def test_files(files: List[UploadFile] = File(...)):
     pre_processed = process_image(pre_disaster_image)
     post_processed = process_image(post_disaster_image)
 
+    # The stack is now done in the dataset_generator
     # stacked_image = np.concatenate([pre_processed, post_processed], axis=-1)  # Shape: (256, 256, 6)
 
     # Add stacked image to tf.data.Dataset
     dataset = tf.data.Dataset.from_generator(
-        lambda: dataset_generator(pre_disaster_image, post_disaster_image), 
+        lambda: dataset_generator(pre_processed, post_processed), 
         output_signature=(tf.TensorSpec(shape=(256, 256, 6), dtype=tf.float32))
     )
     
@@ -158,36 +136,3 @@ async def test_files(files: List[UploadFile] = File(...)):
 
     # return {"stacked_shape": stacked_image.shape}
     return FileResponse(pred)
-
-# Endpoint pour recevoir l'image et renvoyer le résultat
-@app.post("/predict")
-async def predict(data: Files):
-    print("\n1 - Received data\n")
-    
-    files = data.model_dump()
-    
-    print(f"\n2 - Dictionnary created with keys: {files.keys()}")
-    print(f"2 - Dictionary value types: {type(files['pre_disaster_image'])}")
-    print(f"2 - Dictionary value length: {len(files['pre_disaster_image'])}\n")
-
-    # Pre-processing of received files
-    pre_disaster_image = files['pre_disaster_image'].encode('utf-8')
-    pre_file_byte = np.array(bytearray(pre_disaster_image), dtype=np.uint8)
-    pre_opencv = cv2.imdecode(pre_file_byte, 1)
-    pre_opencv = cv2.cvtColor(pre_opencv, cv2.COLOR_BGR2RGB)
-    pre_opencv = cv2.resize(pre_opencv, IMG_SIZE) / 255.0
-
-    post_disaster_image = files['post_disaster_image'].encode('utf-8')
-    post_file_byte = np.array(bytearray(post_disaster_image), dtype=np.uint8)
-    post_opencv = cv2.imdecode(post_file_byte, 1)
-    post_opencv = cv2.cvtColor(post_opencv, cv2.COLOR_BGR2RGB)
-    post_opencv = cv2.resize(post_opencv, IMG_SIZE) / 255.0
-
-    stacked_image = np.concatenate([pre_opencv, post_opencv], axis=-1)  # Shape: (256, 256, 6)
-
-    # model = # Model load
-
-    # pred = model.predict(stacked_image)
-    pred = ''
-    
-    return {"prediction": pred} # pred

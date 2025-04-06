@@ -5,6 +5,8 @@ import requests
 import chardet
 from os import path
 
+URL = "http://localhost:8080/predict/"
+
 pre_bytes = None
 post_bytes = None
 
@@ -22,11 +24,9 @@ post_disaster_file = col2.file_uploader("Choose a post-disaster image file", typ
 
 if pre_disaster_file is not None:
     # Convert the file to an opencv image.
-    
     pre_bytes = pre_disaster_file.read()
     file_bytes = np.asarray(bytearray(pre_bytes), dtype=np.uint8)
     opencv_image = cv2.imdecode(file_bytes, 1)
-    
     # Display image.
     col1.image(opencv_image, channels="BGR")
 
@@ -35,7 +35,6 @@ if post_disaster_file is not None:
     post_bytes = post_disaster_file.read()
     file_bytes = np.asarray(bytearray(post_bytes), dtype=np.uint8)
     opencv_image = cv2.imdecode(file_bytes, 1)
-
     # Display image.
     col2.image(opencv_image, channels="BGR")
 
@@ -56,22 +55,14 @@ if post_disaster_url:
 # Prédiction
 if tab1.button("Predict from file"):
     # Send a POST request to the API
-    # url = "http://localhost:8080/predict"  # Replace with your API endpoint
-    # url = "http://localhost:8080/uploadfiles/"
-    url = "http://localhost:8080/testfiles/"
-    # files = {
-    #     "pre_disaster_image": pre_bytes,
-    #     "post_disaster_image": post_bytes
-    # }
     files = [('files', pre_bytes), ('files', post_bytes)]
     
-    response = requests.post(url, files=files)
+    response = requests.post(URL, files=files)
     
     if response.status_code == 200:
         tab1.success("Prediction successful!")
         mask = response.content
-        tab1.write(str(type(mask)))
-        # tab1.json(response.json())
+        # tab1.write(str(type(mask)))
     else:
         tab1.error("Prediction failed.")
         with open(path.join("logs", "response.txt"), "w") as f:
@@ -87,21 +78,13 @@ if tab2.button("Predict from URL"):
     post_disaster_image_bytes = post_response.content
 
     # Send a POST request to the API
-    url = "http://localhost:8080/predict"  # Replace with your API endpoint
-    # files = {
-    #     "pre_disaster_image": ("pre_disaster.png", pre_disaster_image_bytes, "image/png"),
-    #     "post_disaster_image": ("post_disaster.png", post_disaster_image_bytes, "image/png"),
-    # }
-    files = {
-        "pre_disaster_image": pre_disaster_image_bytes,
-        "post_disaster_image": post_disaster_image_bytes
-    }
+    files = [('files', pre_bytes), ('files', post_bytes)]
     
-    response = requests.post(url, files=files)
+    response = requests.post(URL, files=files)
     
     if response.status_code == 200:
         tab2.success("Prediction successful!")
-        tab2.json(response.json())
+        mask = response.content
     else:
         tab2.error("Prediction failed.")
         with open(path.join("logs", "response.txt"), "w") as f:
