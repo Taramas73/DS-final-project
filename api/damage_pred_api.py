@@ -9,10 +9,10 @@ import cv2
 from pydantic import BaseModel
 import python_multipart
 from typing import Annotated, List
-from os import path
+from os import path, environ
 
 IMG_SIZE = (256, 256)
-MODEL_PATH = path.join("models", "unet_v8_multiclass_epoch_20.weights.h5")
+MODEL_PATH = path.join("models", "unet_v9_multiclass_epoch_10.h5")
 
 def process_image(image: bytes):
     file_byte = np.array(bytearray(image), dtype=np.uint8)
@@ -60,11 +60,8 @@ def overlay_masks_on_image(image, mask, alpha=0.4):
 
     return overlay.astype(np.uint8)
 
-def dataset_generator(pre_image, post_image):
-    stacked_image = np.concatenate([pre_image, post_image], axis=-1)  # Shape: (256, 256, 6)
-    yield stacked_image
 
-# U-Net Model
+# 2️⃣ Define U-Net Model
 def unet_model(input_shape=(256, 256, 6), num_classes=5):
     inputs = Input(input_shape)
 
@@ -105,6 +102,7 @@ def unet_model(input_shape=(256, 256, 6), num_classes=5):
     model = Model(inputs, outputs)
     return model
 
+
 app = FastAPI()
 
 @app.get("/")
@@ -120,21 +118,22 @@ async def test_files(files: List[UploadFile] = File(...)):
     pre_processed = process_image(pre_disaster_image)
     post_processed = process_image(post_disaster_image)
 
-    # The stack is now done in the dataset_generator
-    # stacked_image = np.concatenate([pre_processed, post_processed], axis=-1)  # Shape: (256, 256, 6)
-
-    # Add stacked image to tf.data.Dataset
-    dataset = tf.data.Dataset.from_generator(
-        lambda: dataset_generator(pre_processed, post_processed), 
-        output_signature=(tf.TensorSpec(shape=(256, 256, 6), dtype=tf.float32))
-    )
-    
-    # Comment 3 lines below during return test
-    model = unet_model()
+    model = unet_model() 
     model.load_weights(MODEL_PATH)
-    pred = model.predict(tf.expand_dims(dataset.take(1)[1, :, :, :], axis=0))
+
+    stacked_image = np.concatenate([pre_processed, post_processed], axis=-1)  # Shape: (256, 256, 6)
+    prediction = model.predict(tf.expand_dims(stacked_image, axis=0))
+    pred_mask = np.argmax(prediction[0], axis=-1)  # Shape: (256, 256)
+    one_hot_mask = tf.one_hot(pred_mask, depth=5).numpy()  # (256, 256, 5)
+
+    # Overlay
+    overlay = overlay_masks_on_image((post_processed * 255).astype(np.uint8), one_hot_mask)
+
+    # Encode to image bytes
+    _, im_png = cv2.imencode(".png", cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
+    return Response(content=im_png.tobytes(), media_type="image/png")
 
     # return {"stacked_shape": stacked_image.shape}
-    return Response(content=pred)
+    #return Response(content=pred)
     # TEST :
     # return Response(content=post_disaster_image)

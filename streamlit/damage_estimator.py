@@ -3,9 +3,7 @@ import numpy as np
 import cv2
 import requests
 import chardet
-from os import path
-
-URL = "http://localhost:8080/predict/"
+from os import path, environ
 
 pre_bytes = None
 post_bytes = None
@@ -57,7 +55,7 @@ if tab1.button("Predict from file"):
     # Send a POST request to the API
     files = [('files', pre_bytes), ('files', post_bytes)]
     
-    response = requests.post(URL, files=files)
+    response = requests.post(environ.get('PRED_URL'), files=files)
     
     if response.status_code == 200:
         tab1.success("Prediction successful!")
@@ -81,7 +79,7 @@ if tab2.button("Predict from URL"):
     # Send a POST request to the API
     files = [('files', pre_disaster_image_bytes), ('files', post_disaster_image_bytes)]
     
-    response = requests.post(URL, files=files)
+    response = requests.post(environ.get('PRED_URL'), files=files)
     
     if response.status_code == 200:
         tab2.success("Prediction successful!")
@@ -90,5 +88,5 @@ if tab2.button("Predict from URL"):
     else:
         tab2.error("Prediction failed.")
         with open(path.join("logs", "response.txt"), "w") as f:
-            f.write(response.status_code + "\n\n" + response.text)
+            f.write(str(response.status_code) + "\n\n" + response.text)
         # tab2.error(f"Error: {response.status_code} - {response.text}")
