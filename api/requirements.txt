@@ -1,8 +1,6 @@
-python-multipart
-fastapi
-uvicorn
-pydantic
-tensorflow
-numpy
-pandas
-opencv
+fastapi==0.115.11
+numpy==1.26.4
+tensorflow==2.19.0
+opencv-python==4.11.0.86
+typing==3.7.4.3
+python-multipart==0.0.20

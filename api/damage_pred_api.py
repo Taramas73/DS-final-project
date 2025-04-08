@@ -1,18 +1,16 @@
-from fastapi import FastAPI, Request, File, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse, Response
-import pandas as pd
+from fastapi import FastAPI, File, UploadFile
+from fastapi.responses import Response
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, Input, concatenate
 from tensorflow.keras.models import Model
 import cv2
-from pydantic import BaseModel
 import python_multipart
-from typing import Annotated, List
+from typing import List
 from os import path, environ
 
 IMG_SIZE = (256, 256)
-MODEL_PATH = path.join("models", "unet_v9_multiclass_epoch_10.h5")
+MODEL = path.join(environ.get("MODEL_PATH"), environ.get("MODEL_FILE"))
 
 def process_image(image: bytes):
     file_byte = np.array(bytearray(image), dtype=np.uint8)
@@ -157,7 +155,7 @@ async def test_files(files: List[UploadFile] = File(...)):
     post_processed = process_image(post_disaster_image)
 
     model = unet_model() 
-    model.load_weights(MODEL_PATH)
+    model.load_weights(MODEL)
 
     stacked_image = np.concatenate([pre_processed, post_processed], axis=-1)  # Shape: (256, 256, 6)
     prediction = model.predict(tf.expand_dims(stacked_image, axis=0))
@@ -185,7 +183,7 @@ async def test_files(files: List[UploadFile] = File(...)):
     post_processed = process_image(post_disaster_image)
 
     model = unet_model() 
-    model.load_weights(MODEL_PATH)
+    model.load_weights(MODEL)
 
     stacked_image = np.concatenate([pre_processed, post_processed], axis=-1)  # Shape: (256, 256, 6)
     prediction = model.predict(tf.expand_dims(stacked_image, axis=0))
