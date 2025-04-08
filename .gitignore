@@ -2,3 +2,5 @@ dataset/
 streamlit/logs/
 .env
 .envrc
+logs/
+streamlit/.streamlit/secrets.toml

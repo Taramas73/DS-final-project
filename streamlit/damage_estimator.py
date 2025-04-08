@@ -2,11 +2,16 @@ import streamlit as st
 import numpy as np
 import cv2
 import requests
-import chardet
 from os import path, environ
+import pandas as pd
 
 pre_bytes = None
 post_bytes = None
+
+labels = {'Severity': ['No damage', 'Minor damage', 'Major damage', 'Destroyed']}
+# labels = {'s1': ['No damage'], 's2': ['Minor damage'], 's3': ['Major damage'], 's4': ['Destroyed']}
+df = pd.DataFrame(labels)
+df = df.style.map(lambda x: f"background-color: {'cyan' if 'No' in x else ('yellow' if 'Min' in x else ('orange' if 'Maj' in x else 'red')) }")
 
 st.title("Damage estimator")
 
@@ -51,22 +56,33 @@ if post_disaster_url:
     col4.image(file_response.content, channels="BGR")
 
 # Prédiction
-if tab1.button("Predict from file"):
+if col1.button("Predict from file"):
     # Send a POST request to the API
     files = [('files', pre_bytes), ('files', post_bytes)]
     
-    response = requests.post(environ.get('PRED_URL'), files=files)
+    response = requests.post(st.secrets['PRED_URL'], files=files)
     
     if response.status_code == 200:
-        tab1.success("Prediction successful!")
+        col5, col6= tab1.columns(2)
+        col5.success("Prediction")
         mask = response.content
-        tab1.image(mask)
-        # tab1.write(str(type(mask)))
+        col5.image(mask)
+
+        m_resp = requests.post(st.secrets['PRED_MASK'], files=files)
+        if m_resp.status_code == 200:
+            col6.success("Mask")
+            mask = m_resp.content
+            col6.image(mask)
+            col9, col10, col11 = tab1.columns(3)
+            col10.write("Labels:")
+            col10.dataframe(df, hide_index=True)
+        else:
+            col6.error("Mask cannot be loaded.")
     else:
         tab1.error("Prediction failed.")
-        with open(path.join("logs", "response.txt"), "w") as f:
-            f.write(str(response.status_code) + "\n\n" + response.text)
-        # tab1.error(f"Error: {response.status_code} - {response.text}")
+        # with open(path.join("logs", "response.txt"), "w") as f:
+        #     f.write(str(response.status_code) + "\n\n" + response.text)
+        tab1.error(f"Error: {response.status_code} - {response.text}")
 
 if tab2.button("Predict from URL"):
     # Convert both images to bytes
@@ -79,14 +95,26 @@ if tab2.button("Predict from URL"):
     # Send a POST request to the API
     files = [('files', pre_disaster_image_bytes), ('files', post_disaster_image_bytes)]
     
-    response = requests.post(environ.get('PRED_URL'), files=files)
+    response = requests.post(st.secrets['PRED_URL'], files=files)
     
     if response.status_code == 200:
-        tab2.success("Prediction successful!")
+        col7, col8 = tab2.columns(2)
+        col7.success("Prediction")
         mask = response.content
-        tab2.image(mask)
+        col7.image(mask)
+
+        m_resp = requests.post(st.secrets['PRED_MASK'], files=files)
+        if m_resp.status_code == 200:
+            col8.success("Mask")
+            mask = m_resp.content
+            col8.image(mask)
+            col12, col13, col14 = tab2.columns(3)
+            col13.write("Labels:")
+            col13.dataframe(df, hide_index=True)
+        else:
+            col8.error("Mask cannot be loaded.")
     else:
         tab2.error("Prediction failed.")
-        with open(path.join("logs", "response.txt"), "w") as f:
-            f.write(str(response.status_code) + "\n\n" + response.text)
-        # tab2.error(f"Error: {response.status_code} - {response.text}")
+        # with open(path.join("logs", "response.txt"), "w") as f:
+        #     f.write(str(response.status_code) + "\n\n" + response.text)
+        tab2.error(f"Error: {response.status_code} - {response.text}")

@@ -2,8 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import json, datetime
-from os import listdir, path, getcwd
+from os import path
 
 # Il faudrait mettre les constantes (par exemple les chemins) dans des venv.
 # Pour l'instant, je répertoire de travail est la racine du projet.

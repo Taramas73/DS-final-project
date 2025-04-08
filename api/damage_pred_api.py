@@ -60,6 +60,44 @@ def overlay_masks_on_image(image, mask, alpha=0.4):
 
     return overlay.astype(np.uint8)
 
+def overlay_black_masks(image, mask, alpha=1):
+    """
+    Overlays a color image with a 5-channel mask.
+    
+    Parameters:
+        image (np.ndarray): RGB image of shape (X, Y, 3), dtype=uint8.
+        mask (np.ndarray): One-hot encoded mask of shape (X, Y, 5), dtype=uint8 or bool.
+        alpha (float): Transparency of the mask overlay.
+        
+    Returns:
+        np.ndarray: Image of shape (X, Y, 3) with mask overlay.
+    """
+    # Define RGBA colors for each layer
+    colors = {
+        0: (0, 0, 0),        # Black
+        1: (0, 255, 255),    # Cyan
+        2: (255, 255, 0),    # Yellow
+        3: (255, 165, 0),    # Orange
+        4: (255, 0, 0),      # Red
+    }
+
+    overlay = image.copy()
+
+    for i in range(0, 5):
+        mask_layer = mask[:, :, i]
+        color = np.array(colors[i], dtype=np.uint8)
+
+        # Create a colored layer with the mask
+        color_mask = np.zeros_like(image, dtype=np.uint8)
+        for c in range(3):
+            color_mask[:, :, c] = color[c] * mask_layer
+
+        # Blend the color mask with the original image
+        overlay = np.where(mask_layer[..., None], 
+                           (1 - alpha) * overlay + alpha * color_mask,
+                           overlay)
+
+    return overlay.astype(np.uint8)
 
 # 2️⃣ Define U-Net Model
 def unet_model(input_shape=(256, 256, 6), num_classes=5):
@@ -137,3 +175,26 @@ async def test_files(files: List[UploadFile] = File(...)):
     #return Response(content=pred)
     # TEST :
     # return Response(content=post_disaster_image)
+
+@app.post("/predict-mask/")
+async def test_files(files: List[UploadFile] = File(...)):
+    pre_disaster_image = files[0].file.read()
+    post_disaster_image = files[1].file.read()
+
+    pre_processed = process_image(pre_disaster_image)
+    post_processed = process_image(post_disaster_image)
+
+    model = unet_model() 
+    model.load_weights(MODEL_PATH)
+
+    stacked_image = np.concatenate([pre_processed, post_processed], axis=-1)  # Shape: (256, 256, 6)
+    prediction = model.predict(tf.expand_dims(stacked_image, axis=0))
+    pred_mask = np.argmax(prediction[0], axis=-1)  # Shape: (256, 256)
+    one_hot_mask = tf.one_hot(pred_mask, depth=5).numpy()  # (256, 256, 5)
+
+    # Overlay
+    overlay = overlay_black_masks((post_processed * 255).astype(np.uint8), one_hot_mask)
+
+    # Encode to image bytes
+    _, im_png = cv2.imencode(".png", cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
+    return Response(content=im_png.tobytes(), media_type="image/png")
