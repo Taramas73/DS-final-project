@@ -10,4 +10,7 @@ The structure of the project could be like this (here shown only the directories
 │       ├── images
 │       ├── labels
 │       └── targets
-└── models
+├── models
+├── src 
+├── streamlit
+└── api
